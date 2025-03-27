@@ -7,11 +7,14 @@ from sklearn.metrics import precision_recall_curve, auc
 from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import roc_auc_score
+from sklearn.metrics import accuracy_score
 
 
 def evaluate_model(y_true, y_pred, y_scores, metric="balanced_accuracy"):
     if metric == 'recall':
         return recall_score(y_true, y_pred)
+    elif metric == 'accuracy':
+        return accuracy_score(y_true, y_pred)
     elif metric == 'precision':
         return precision_score(y_true, y_pred)
     elif metric == 'f1':
@@ -33,6 +36,9 @@ class LogRegCCD:
         self.max_iter = max_iter
         self.best_lambda = None
         self.best_beta = None
+        self.train_mean = 1
+        self.train_std = 1
+        
 
     def S(self, z, gamma):
         return np.sign(z) * max(np.abs(z) - gamma, 0)
@@ -41,11 +47,15 @@ class LogRegCCD:
         '''
         Standardize the data and add a column of ones for the intercept.
         '''
-        X_train_stand = (X_train - np.mean(X_train, axis=0)) / np.std(X_train, axis=0)
+        self.train_mean = np.mean(X_train, axis=0)
+        self.train_std = np.std(X_train, axis=0) + 1e-8
+        X_train_stand = (X_train - self.train_mean) / self.train_std
         X_train_ready = np.hstack([np.ones((X_train_stand.shape[0], 1)), X_train_stand])
         return X_train_ready
 
     def prepare_test_data(self, X_test):
+        # Dodałem standaryzacje dla zbiorku testowego na bazie zbiorku treningowego
+        X_test_stand = (X_test - self.train_mean) / self.train_std
         return np.hstack([np.ones((X_test.shape[0], 1)), X_test])
 
     def coordinate_descent(self, X, y, lambd, beta):
@@ -78,12 +88,13 @@ class LogRegCCD:
                     break
 
             probs = expit(X_valid @ beta)
-            preds = (X_valid @ beta > 0).astype(int)
+            preds = (probs > 0.5).astype(int)
             metric_value = evaluate_model(y_valid, preds, probs, metric)
             if metric_value > best_metric_value:
                 best_metric_value = metric_value
                 self.best_beta = beta
                 self.best_lambda = lambd
+
 
     def validate(self, X_valid, y_valid, metric="balanced_accuracy"):
         if self.best_beta is None:
