@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+connectionist+bench+sonar+mines+vs+rocks/
+secom/
+
 # C extensions
 *.so
 
