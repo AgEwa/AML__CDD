@@ -8,6 +8,7 @@ from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import log_loss
 
 
 def evaluate_model(y_true, y_pred, y_scores, metric="balanced_accuracy"):
@@ -165,7 +166,7 @@ class LogRegCCD:
             beta_new[j] = self.S(rho, lambd)
         return beta_new
 
-    def fit(self, X_train, y_train, X_valid, y_valid, lambdas, metric="balanced_accuracy"):
+    def fit(self, X_train, y_train, X_valid, y_valid, lambdas, metric="balanced_accuracy", loss_history=False):
         '''
         Fits the model using coordinate descent on different lambda values. It chooses the best lambda based on the specified metric.
         Supported metrics are:
@@ -178,12 +179,15 @@ class LogRegCCD:
             y_valid (array-like): Validation labels.
             lambdas (list): List of lambda values to evaluate.
             metric (str): The metric to evaluate. Default is "balanced_accuracy".
+            loss_history (bool): If True, returns the log loss history.
         '''
         N, p = X_train.shape
         best_metric_value = -np.inf
         beta_inter = np.mean(y_train)
         scores = []
         coefficients = []
+        if loss_history:
+            log_loss_history = []
 
         for lambd in lambdas:
             beta = np.ones(p)
@@ -193,6 +197,8 @@ class LogRegCCD:
                 p_tilde = expit(X_train @ beta)
                 z = X_train @ beta + (y_train - p_tilde) / 0.25
                 beta = self.coordinate_descent(X_train, z, lambd, beta)
+                if loss_history:
+                    log_loss_history.append(log_loss(y_train, p_tilde))
                 if np.linalg.norm(beta - beta_old, ord=2) < self.tol:
                     break
 
@@ -205,6 +211,8 @@ class LogRegCCD:
                 self.best_lambda = lambd
             scores.append(metric_value)
             coefficients.append(self.best_beta.copy()[1:])
+        if loss_history:
+            return scores, coefficients, log_loss_history
         return scores, coefficients
 
     def validate(self, X_valid, y_valid, metric="balanced_accuracy"):
