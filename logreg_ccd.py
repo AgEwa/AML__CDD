@@ -210,7 +210,7 @@ class LogRegCCD:
                 self.best_beta = beta
                 self.best_lambda = lambd
             scores.append(metric_value)
-            coefficients.append(self.best_beta.copy()[1:])
+            coefficients.append(beta.copy()[1:])
         if loss_history:
             return scores, coefficients, log_loss_history
         return scores, coefficients
