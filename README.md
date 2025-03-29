@@ -62,9 +62,11 @@ The `LogRegCCD` class provides methods for visualizing the model's perfomance an
 1. Plotting Metric vs Lambda (method `plot`) <br>
 This method plots the specified performance metric against different values of the regularization parameter. The metric is calculated for each value from `lambdas` parameter. Supported metrics are the same as in validation.
 <br>
+
 ![example plot](./readme_charts/plot.png)
 
 2. Plotting Coefficients vs Lambda (method `plot_coefficients`) <br>
 This method visualizes the behavior of the model's coefficients as a function of different values of the regularization parameter.
 <br>
+
 ![example coefficient plot](./readme_charts/coefficient.png)
