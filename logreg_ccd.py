@@ -43,6 +43,42 @@ def evaluate_model(y_true, y_pred, y_scores, metric="balanced_accuracy"):
         raise ValueError(f"Unknown metric: {metric}")
 
 
+def prepare_data(X_train, X_val, X_test):
+    '''
+    Standardize the data and add a column of ones for the intercept.
+    '''
+    mean = np.mean(X_train, axis=0)
+    std = np.std(X_train, axis=0)
+    std = np.where(std == 0, 1, std)
+    X_train = (X_train - mean) / std
+    X_val = (X_val - mean) / std
+    X_test = (X_test - mean) / std
+    return np.hstack([np.ones((X_train.shape[0], 1)), X_train]), np.hstack(
+        [np.ones((X_val.shape[0], 1)), X_val]), np.hstack([np.ones((X_test.shape[0], 1)), X_test])
+
+
+def get_lambda_sequence(X, y, n_lambda=100, eps=0.001):
+    """
+    Generate a sequence of lambda values.
+
+    Parameters:
+    - X: Standardized design matrix (N x p)
+    - y: Response vector (N,)
+    - n_lambda: Number of lambda values in the sequence
+    - eps: The fraction to determine lambda_min (lambda_min = eps * lambda_max)
+
+    Returns:
+    - lambdas: A numpy array of lambda values, from lambda_max to lambda_min (log-spaced)
+    """
+    N = X.shape[0]
+    # Compute lambda_max as the maximum absolute correlation, scaled by 1/N.
+    lambda_max = np.max(np.abs(X.T @ y)) / N
+    lambda_min = eps * lambda_max
+    # Generate n_lambda values logarithmically spaced between lambda_max and lambda_min
+    lambdas = np.exp(np.linspace(np.log(lambda_max), np.log(lambda_min), n_lambda))
+    return lambdas
+
+
 class LogRegCCD:
     '''
     Logistic Regression using Coordinate Descent with L1 regularization.
@@ -106,7 +142,7 @@ class LogRegCCD:
             array-like: Standardized test features with intercept.
         '''
         X_test_stand = (X_test - self.train_mean) / self.train_std
-        return np.hstack([np.ones((X_test.shape[0], 1)), X_test])
+        return np.hstack([np.ones((X_test_stand.shape[0], 1)), X_test])
 
     def coordinate_descent(self, X, y, lambd, beta):
         '''
@@ -143,11 +179,11 @@ class LogRegCCD:
             lambdas (list): List of lambda values to evaluate.
             metric (str): The metric to evaluate. Default is "balanced_accuracy".
         '''
-        X_train = self.prepare_train_data(X_train)
-        X_valid = self.prepare_test_data(X_valid)
         N, p = X_train.shape
         best_metric_value = -np.inf
         beta_inter = np.mean(y_train)
+        scores = []
+        coefficients = []
 
         for lambd in lambdas:
             beta = np.ones(p)
@@ -167,7 +203,9 @@ class LogRegCCD:
                 best_metric_value = metric_value
                 self.best_beta = beta
                 self.best_lambda = lambd
-
+            scores.append(metric_value)
+            coefficients.append(self.best_beta.copy()[1:])
+        return scores, coefficients
 
     def validate(self, X_valid, y_valid, metric="balanced_accuracy"):
         '''
@@ -184,7 +222,6 @@ class LogRegCCD:
         if self.best_beta is None:
             raise ValueError("Model is not trained yet")
 
-        X_valid = self.prepare_test_data(X_valid)
         probs = expit(X_valid @ self.best_beta)
         preds = (probs > 0.5).astype(int)
         return evaluate_model(y_valid, preds, probs, metric)
@@ -203,7 +240,8 @@ class LogRegCCD:
             raise ValueError("Model is not trained yet")
         return expit(X_test @ self.best_beta)
 
-    def plot(self, X_train, y_train, X_valid, y_valid, lambdas, metric="balanced_accuracy"):
+    def plot(self, lambdas, scores, metric="balanced_accuracy"):
+        plt.figure(figsize=(10, 6))
         '''
         Plots metric vs lambda values for the given lambdas and metric. Supported metrics are:
         ['recall', 'accuracy', 'precision', 'f1', 'balanced_accuracy', 'auc_roc', 'auc_pr']
@@ -216,18 +254,13 @@ class LogRegCCD:
             lambdas (list): List of lambda values to evaluate.
             metric (str): The metric to evaluate. Default is "balanced_accuracy".
         '''
-        scores = []
-        for lambd in lambdas:
-            self.fit(X_train, y_train, X_valid, y_valid, [lambd])
-            score = self.validate(X_valid, y_valid, metric)
-            scores.append(score)
         plt.plot(lambdas, scores, marker='o')
         plt.xlabel("Lambda")
         plt.ylabel(metric)
         plt.title(f"{metric} vs Lambda")
         plt.show()
 
-    def plot_coefficients(self, lambdas, X_train, y_train, metric="balanced_accuracy"):
+    def plot_coefficients(self, lambdas, coefficients, metric="balanced_accuracy"):
         '''
         Plots values of coefficients for different lambda values.
         
@@ -237,15 +270,11 @@ class LogRegCCD:
             y_train (array-like): Training labels.
             metric (str): The metric to evaluate. Default is "balanced_accuracy".
         '''
-        coefficients = []
-        for lambd in lambdas:
-            self.fit(X_train, y_train, X_train, y_train, [lambd], metric=metric)
-            coefficients.append(self.best_beta.copy()[1:])
         coefficients = np.array(coefficients)
         for i in range(coefficients.shape[1]):
             plt.plot(lambdas, coefficients[:, i], label=f'Feature {i}')
         plt.xlabel("Lambda")
         plt.ylabel("Coefficient Value")
         plt.title("Coefficients based on lambdas")
-        plt.legend()
+        #plt.legend()
         plt.show()
