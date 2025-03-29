@@ -263,9 +263,9 @@ class LogRegCCD:
             metric (str): The metric to evaluate. Default is "balanced_accuracy".
         '''
         plt.plot(lambdas, scores, marker='o')
-        plt.xlabel("Lambda")
-        plt.ylabel(metric)
-        plt.title(f"{metric} vs Lambda")
+        plt.xlabel("Lambdas")
+        plt.ylabel(f"{metric} scores")
+        plt.title(f"{metric} score on validation during training for given lambda")
         plt.show()
 
     def plot_coefficients(self, lambdas, coefficients, metric="balanced_accuracy"):
@@ -278,11 +278,12 @@ class LogRegCCD:
             y_train (array-like): Training labels.
             metric (str): The metric to evaluate. Default is "balanced_accuracy".
         '''
+        plt.figure(figsize=(10, 6))
         coefficients = np.array(coefficients)
         for i in range(coefficients.shape[1]):
             plt.plot(lambdas, coefficients[:, i], label=f'Feature {i}')
-        plt.xlabel("Lambda")
-        plt.ylabel("Coefficient Value")
+        plt.xlabel("Lambdas")
+        plt.ylabel("Coefficient values")
         plt.title("Coefficients based on lambdas")
-        #plt.legend()
+        plt.legend()
         plt.show()
