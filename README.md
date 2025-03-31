@@ -4,30 +4,44 @@ This repository provides an implementation of the Cyclic Coordinate Descent (CCD
 
 The implementation of the algorithm can be found in the `logreg_ccd.py` file.
 
-### Example usage
+## Example usage
 ```python
-from logreg_ccd import LogRegCCD
-import numpy as np
+from logreg_ccd import LogRegCCD, evaluate_model, prepare_data, get_lambda_sequence
+from real_data_experiments import get_data_splitted
 
-# Initialize the LogRegCCD model
-log_reg_ccd = LogRegCCD()
+# Split the data into training, validation and testing sets
+X_train, X_valid, X_test, y_train, y_valid, y_test = get_data_splitted(filepath='data.csv')
+# Standarize the data and add columns of ones for the intercept
+X_train, X_valid, X_test = prepare_data(X_train, X_valid, X_test)
+# Generate lambdas space to explore
+lambdas = get_lambda_sequence(X_train, y_train, n_lambda=100, eps=0.001)
 
-# Fit the model using traning and validation data
-log_reg_ccd.fit(
-    X_train,
-    y_train,
-    X_valid,
-    y_valid,
-    lambdas=np.logspace(-4, 0, 50),
-    metric="accuracy"
-)
+# Initialize the model
+ccd = LogRegCCD()
+# Fit the model - choose the best lambda based on metric on validation set
+scores, coeffs = ccd.fit(X_train, y_train, X_valid, y_valid, lambdas, metric="accuracy")
 
-# Predict probabilities for the test data
-proba = log_reg_ccd.predict_proba(X_test)
+# Validate the results for the best lambda found
+score_ccd = ccd.validate(X_test, y_test, metric="accuracy")
+# or predict probabilities for the best lambda found
+proba = ccd.predict_proba(X_test)
 
-# Calculate the accuracy for the test data
-accuracy = log_reg_ccd.validate(X_test, y_test, metric="accuracy")
+# Plot lambda values vs metric value plot
+ccd.plot(lambdas, scores, metric="accuracy")
+# Plot lambda values vs coefficient values plot
+ccd.plot_coefficients(lambdas, coeffs, metric="accuracy")
 ```
+
+## Features and methods
+
+### Data Splitting
+The `get_data_splitted` function divides the dataset into training, validation, and testing subsets. This ensures the model is trained on one part of the data, validated on another to tune hyperparameters, and tested on a completely separate set to evaluate generalization performance. We assume that the dataset has no header, and the target variable is located in the last column.
+
+### Data Preparation
+The `prepare_data` function standardizes the data and adds a column of ones for the intercept.
+
+### Generating Lambda Sequence
+The `get_lambda_sequence` function creates a sequence of regularization parameter (`lambda`) values to be tested during model fitting. The `n_lambda` parameter controls the number of values, and eps defines the range.
 
 ### LogRegCCD initialization parameters
 
@@ -60,7 +74,7 @@ The `validate` method allows you to calculate the chosen performance metric. The
 The `LogRegCCD` class provides methods for visualizing the model's perfomance and coefficient behavior as a function of the regularization parameter.
 
 1. Plotting Metric vs Lambda (method `plot`) <br>
-This method plots the specified performance metric against different values of the regularization parameter. The metric is calculated for each value from `lambdas` parameter. Supported metrics are the same as in validation.
+This method plots the specified performance metric against different values of the regularization parameter.
 <br>
 
 ![example plot](./readme_charts/plot.png)

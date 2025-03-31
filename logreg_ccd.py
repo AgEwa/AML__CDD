@@ -180,6 +180,9 @@ class LogRegCCD:
             lambdas (list): List of lambda values to evaluate.
             metric (str): The metric to evaluate. Default is "balanced_accuracy".
             loss_history (bool): If True, returns the log loss history.
+
+        Returns:
+            tuple: Scores of metric for each lambda, coefficients for each lambda, and optionally log loss history.
         '''
         N, p = X_train.shape
         best_metric_value = -np.inf
